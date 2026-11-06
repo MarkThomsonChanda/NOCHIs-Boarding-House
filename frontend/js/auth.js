@@ -1,84 +1,213 @@
-import { supabase, API_URL } from "./config.js";
+// ======================================
+// NOCHIs BOARDING HOUSE - AUTHENTICATION
+// ======================================
 
-// REGISTER
-export async function registerUser(email, password) {
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password
-    });
+// Display messages
+function showMessage(message, type = "error") {
+    const element =
+        document.getElementById("registerMessage") ||
+        document.getElementById("message") ||
+        document.getElementById("authMessage");
 
-    if (error) {
-        throw error;
-    }
-
-    return data;
-}
-
-// LOGIN
-export async function loginUser(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-    });
-
-    if (error) {
-        throw error;
-    }
-
-    return data;
-}
-
-// LOGOUT
-export async function logoutUser() {
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-        throw error;
+    if (element) {
+        element.textContent = message;
+        element.style.color =
+            type === "success" ? "green" : "red";
     }
 }
 
-// GET CURRENT USER
-export async function getCurrentUser() {
-    const { data, error } = await supabase.auth.getUser();
 
-    if (error) {
-        return null;
-    }
+// ======================================
+// REGISTER STUDENT
+// ======================================
 
-    return data.user;
-}
+async function registerUser(fullName, email, password) {
 
-// GET ACCESS TOKEN
-export async function getAccessToken() {
-    const { data, error } = await supabase.auth.getSession();
+    try {
+        showMessage("Creating your account...", "success");
 
-    if (error || !data.session) {
-        return null;
-    }
+        const { data, error } =
+            await supabaseClient.auth.signUp({
+                email: email,
+                password: password,
+                options: {
+                    data: {
+                        full_name: fullName,
+                        role: "student"
+                    }
+                }
+            });
 
-    return data.session.access_token;
-}
-
-// LOAD MY ROOM
-export async function loadMyRoom() {
-    const token = await getAccessToken();
-
-    if (!token) {
-        throw new Error("Please log in first.");
-    }
-
-    const response = await fetch(${API_URL}/api/my-room, {
-        method: "GET",
-        headers: {
-            "Authorization": Bearer ${token},
-            "Content-Type": "application/json"
+        if (error) {
+            throw error;
         }
-    });
 
-    if (!response.ok) {
-        const message = await response.text();
-        throw new Error(Error ${response.status}: ${message});
+        if (!data.session) {
+            showMessage(
+                "Registration successful! Please check your email to verify your account.",
+                "success"
+            );
+            return;
+        }
+
+        showMessage(
+            "Account created successfully!",
+            "success"
+        );
+
+        window.location.href = "dashboard.html";
+
+    } catch (error) {
+        showMessage(error.message);
+    }
+}
+
+
+// ======================================
+// LOGIN USER
+// ======================================
+
+async function loginUser(email, password) {
+
+    try {
+        showMessage("Signing in...", "success");
+
+        const { data, error } =
+            await supabaseClient.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        const token = data.session.access_token;
+
+        localStorage.setItem("nochis_access_token", token);
+
+        const response = await fetch(
+            API_URL + "/api/me",
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": "Bearer " + token,
+                    "Content-Type": "application/json"
+                }
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                "Could not load your profile. Please contact the administrator."
+            );
+        }
+
+        const result = await response.json();
+
+        const profile = result.profile || result;
+
+        if (profile.role === "owner") {
+
+            window.location.href = "admin.html";
+
+        } else {
+
+            window.location.href = "dashboard.html";
+
+        }
+
+    } catch (error) {
+        showMessage(error.message);
+    }
+}
+
+
+// ======================================
+// LOGOUT USER
+// ======================================
+
+async function logoutUser() {
+
+    try {
+        await supabaseClient.auth.signOut();
+
+        localStorage.removeItem("nochis_access_token");
+
+        window.location.href = "login.html";
+
+    } catch (error) {
+        console.error("Logout error:", error);
+    }
+}
+
+
+// ======================================
+// REGISTRATION FORM
+// ======================================
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const registerForm =
+        document.getElementById("registerForm");
+
+    if (registerForm) {
+
+        registerForm.addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            const fullName =
+                document.getElementById("full_name").value.trim();
+
+            const email =
+                document.getElementById("email").value.trim();
+
+            const password =
+                document.getElementById("password").value;
+
+            const confirmPassword =
+                document.getElementById("confirm_password").value;
+
+            if (password !== confirmPassword) {
+                showMessage("Passwords do not match.");
+                return;
+            }
+
+            if (password.length < 8) {
+                showMessage("Password must have at least 8 characters.");
+                return;
+            }
+
+            await registerUser(fullName, email, password);
+
+        });
     }
 
-    return await response.json();
-  
+
+    // ==================================
+    // LOGIN FORM
+    // ==================================
+
+    const loginForm =
+        document.getElementById("loginForm") ||
+        document.getElementById("form");
+
+    if (loginForm) {
+
+        loginForm.addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            const email =
+                loginForm.querySelector('[type="email"]').value.trim();
+
+            const password =
+                loginForm.querySelector('[type="password"]').value;
+
+            await loginUser(email, password);
+
+        });
+    }
+
+})
