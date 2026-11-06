@@ -1,45 +1,84 @@
-const SUPABASE_URL = "https://eshxmvgbsjusohpmuesb.supabase.co";
+import { supabase, API_URL } from "./config.js";
 
-const SUPABASE_ANON_KEY = "sb_publishable_8a2VYT2RoH4PPCR8R9IJCA_JZFhSa2J";
+// REGISTER
+export async function registerUser(email, password) {
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password
+    });
 
-const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-);
+    if (error) {
+        throw error;
+    }
 
-async function registerUser(email, password, fullName) {
-    const { data, error } = await supabaseClient.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-            data: {
-                full_name: fullName
-            }
+    return data;
+}
+
+// LOGIN
+export async function loginUser(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+    });
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+// LOGOUT
+export async function logoutUser() {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+        throw error;
+    }
+}
+
+// GET CURRENT USER
+export async function getCurrentUser() {
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error) {
+        return null;
+    }
+
+    return data.user;
+}
+
+// GET ACCESS TOKEN
+export async function getAccessToken() {
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error || !data.session) {
+        return null;
+    }
+
+    return data.session.access_token;
+}
+
+// LOAD MY ROOM
+export async function loadMyRoom() {
+    const token = await getAccessToken();
+
+    if (!token) {
+        throw new Error("Please log in first.");
+    }
+
+    const response = await fetch(${API_URL}/api/my-room, {
+        method: "GET",
+        headers: {
+            "Authorization": Bearer ${token},
+            "Content-Type": "application/json"
         }
     });
 
-    if (error) throw error;
-    return data;
-}
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(Error ${response.status}: ${message});
+    }
 
-async function loginUser(email, password) {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-    });
-
-    if (error) throw error;
-
-    localStorage.setItem(
-        "nochis_access_token",
-        data.session.access_token
-    );
-
-    return data;
-}
-
-async function logoutUser() {
-    await supabaseClient.auth.signOut();
-    localStorage.removeItem("nochis_access_token");
-    location.href = "login.html";
-}
+    return await response.json();
+  
