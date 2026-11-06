@@ -1,54 +1,21 @@
-const API_BASE = "https://nochis-boarding-house.onrender.com";
+// ======================================
+// NOCHIs BOARDING HOUSE CONFIGURATION
+// ======================================
 
-const OWNER_CONTACTS = ["0977 204 572", "0979 324 363"];
+// SUPABASE CONNECTION
+const SUPABASE_URL = "https://eshxmvgbsjusohpmuesb.supabase.co";
 
-async function getToken() {
-    const { data, error } = await supabaseClient.auth.getSession();
+const SUPABASE_ANON_KEY = "sb_publishable_8a2VYT2RoH4PPCR8R9IJCA_JZFhSa2J";
 
-    if (error || !data.session) {
-        localStorage.removeItem("nochis_access_token");
-        throw new Error("Your login session has expired. Please log in again.");
-    }
+// INITIALIZE SUPABASE
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+);
 
-    let session = data.session;
+// RENDER BACKEND CONNECTION
+const API_URL = "https://nochis-boarding-house.onrender.com";
 
-    if (session.expires_at * 1000 < Date.now() + 60000) {
-        const refreshed = await supabaseClient.auth.refreshSession();
-
-        if (refreshed.error || !refreshed.data.session) {
-            localStorage.removeItem("nochis_access_token");
-            throw new Error("Session expired. Please log in again.");
-        }
-
-        session = refreshed.data.session;
-    }
-
-    localStorage.setItem("nochis_access_token", session.access_token);
-
-    return session.access_token;
-}
-
-async function api(path, options = {}) {
-    const token = await getToken();
-
-    const headers = {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-        "Authorization": Bearer ${token}
-    };
-
-    const response = await fetch(${API_BASE}${path}, {
-        ...options,
-        headers
-    });
-
-    const data = await response.json().catch(() => ({
-        detail: "Unexpected server response"
-    }));
-
-    if (!response.ok) {
-        throw new Error(data.detail || "Request failed");
-    }
-
-    return data;
-}
+// ======================================
+// END CONFIGURATION
+// ======================================
